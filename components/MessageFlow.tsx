@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CATEGORIES, getCategory, CategoryId } from "@/lib/categories";
+import { getVisitorId, rememberSentMessageId } from "@/lib/visitor";
+import ChatBox from "./ChatBox";
 
 type Step = "hero" | "name" | "category" | "message" | "sending" | "sent";
 
@@ -37,6 +39,7 @@ export default function MessageFlow() {
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [sentId, setSentId] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -69,7 +72,7 @@ export default function MessageFlow() {
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, category, text: text.trim() }),
+        body: JSON.stringify({ name, category, text: text.trim(), visitorId: getVisitorId() }),
       });
       const data = await res.json();
 
@@ -85,6 +88,8 @@ export default function MessageFlow() {
         return;
       }
 
+      rememberSentMessageId(data.id);
+      setSentId(data.id);
       setCooldown(60);
       await new Promise((r) => setTimeout(r, 1400));
       setStep("sent");
@@ -301,32 +306,40 @@ export default function MessageFlow() {
           </StepShell>
         )}
 
-        {step === "sent" && (
+        {step === "sent" && sentId && (
           <StepShell stepKey="sent">
-            <div className="glass rounded-3xl border border-white/10 p-10 sm:p-14 flex flex-col items-center gap-5 text-center">
-              <motion.span
-                initial={{ scale: 0.4, rotate: -20, opacity: 0 }}
-                animate={{ scale: 1, rotate: 0, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 220, damping: 14 }}
-                className="text-5xl"
-              >
-                🚀
-              </motion.span>
-              <h2 className="font-display text-2xl sm:text-3xl font-semibold">
-                Mensagem enviada!
-              </h2>
-              <p className="text-mist">Sua mensagem chegou até o Andry.</p>
+            <div className="flex flex-col items-center gap-5">
+              <div className="text-center flex flex-col items-center gap-2">
+                <motion.span
+                  initial={{ scale: 0.4, rotate: -20, opacity: 0 }}
+                  animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 220, damping: 14 }}
+                  className="text-4xl"
+                >
+                  🚀
+                </motion.span>
+                <h2 className="font-display text-xl sm:text-2xl font-semibold">
+                  Mensagem enviada!
+                </h2>
+                <p className="text-mist text-sm">
+                  Chegou até o Andry. Fique aqui que a resposta aparece nessa caixinha, ao vivo.
+                </p>
+              </div>
+
+              <div className="w-full">
+                <ChatBox messageId={sentId} />
+              </div>
+
               {cooldown > 0 ? (
-                <p className="text-sm text-gold bg-gold/10 border border-gold/30 rounded-xl px-4 py-2 mt-2">
-                  ⏳ Você poderá enviar outra mensagem em {cooldown}s
+                <p className="text-xs text-gold bg-gold/10 border border-gold/30 rounded-xl px-4 py-2">
+                  ⏳ Você poderá abrir outra caixinha em {cooldown}s (pode continuar conversando nessa aqui)
                 </p>
               ) : (
                 <button
                   onClick={resetForAnother}
-                  className="mt-2 rounded-full bg-signal px-7 py-3 font-display font-semibold
-                             transition-transform active:scale-95 hover:bg-signal/90"
+                  className="text-sm text-white/50 hover:text-white/80 transition-colors"
                 >
-                  Mandar outra mensagem
+                  + Mandar outra mensagem em uma caixinha nova
                 </button>
               )}
             </div>

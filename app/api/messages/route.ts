@@ -26,9 +26,11 @@ export async function POST(req: NextRequest) {
     name: validation.name!,
     category: validation.category!,
     text: validation.text!,
+    visitorId: validation.visitorId!,
+    ip,
   });
 
-  return NextResponse.json({ ok: true, id: message.id });
+  return NextResponse.json({ ok: true, id: message.id, message });
 }
 
 export async function GET(req: NextRequest) {

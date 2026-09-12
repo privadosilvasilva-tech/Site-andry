@@ -17,19 +17,33 @@ export function isValidCategory(value: unknown): value is CategoryId {
   return typeof value === "string" && CATEGORIES.some((c) => c.id === value);
 }
 
+const VISITOR_ID_RE = /^[a-zA-Z0-9_-]{10,64}$/;
+
+/**
+ * The "visitorId" is a random token generated in the sender's browser and
+ * saved to localStorage — it's what lets a person come back later and see
+ * only the boxes they personally sent (their IP is also stored server-side
+ * for Andry's reference, but IPs are shared/rotate too often to use as the
+ * access key by themselves).
+ */
+export function isValidVisitorId(value: unknown): value is string {
+  return typeof value === "string" && VISITOR_ID_RE.test(value);
+}
+
 export interface ValidationResult {
   ok: boolean;
   error?: string;
   name?: string;
   category?: CategoryId;
   text?: string;
+  visitorId?: string;
 }
 
 export function validateMessageInput(body: unknown): ValidationResult {
   if (!body || typeof body !== "object") {
     return { ok: false, error: "Dados inválidos." };
   }
-  const { name, category, text } = body as Record<string, unknown>;
+  const { name, category, text, visitorId } = body as Record<string, unknown>;
 
   if (typeof name !== "string" || sanitizeText(name).length < 1) {
     return { ok: false, error: "Informe um nome." };
@@ -54,7 +68,11 @@ export function validateMessageInput(body: unknown): ValidationResult {
     return { ok: false, error: "Mensagem muito longa (máx. 500 caracteres)." };
   }
 
-  return { ok: true, name: cleanName, category, text: cleanText };
+  if (!isValidVisitorId(visitorId)) {
+    return { ok: false, error: "Identificador inválido. Recarregue a página." };
+  }
+
+  return { ok: true, name: cleanName, category, text: cleanText, visitorId: visitorId as string };
 }
 
 export function getClientIp(headers: Headers): string {

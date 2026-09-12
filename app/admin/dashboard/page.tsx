@@ -50,11 +50,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(() => {
-      if (!selectedId) fetchMessages();
-    }, 4000);
+    // Keep polling even with a message open, so new replies from the
+    // visitor show up live in the conversation.
+    const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
-  }, [fetchMessages, selectedId]);
+  }, [fetchMessages]);
 
   const filtered = useMemo(() => {
     let list = messages;
@@ -66,7 +66,9 @@ export default function DashboardPage() {
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
-        (m) => m.name.toLowerCase().includes(q) || m.text.toLowerCase().includes(q)
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          m.entries.some((e) => e.text.toLowerCase().includes(q))
       );
     }
     return list;
@@ -75,8 +77,8 @@ export default function DashboardPage() {
   const selected = messages.find((m) => m.id === selectedId) || null;
 
   useEffect(() => {
-    setReplyText(selected?.reply || "");
-  }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+    setReplyText("");
+  }, [selectedId]);
 
   async function openMessage(m: Message) {
     setSelectedId(m.id);
@@ -101,6 +103,7 @@ export default function DashboardPage() {
     if (!selected || replyText.trim().length < 1) return;
     setSending(true);
     await patchMessage(selected.id, { reply: replyText.trim() });
+    setReplyText("");
     setSending(false);
   }
 
@@ -194,9 +197,11 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <p className="text-xs text-white/50 mb-1">👤 {m.name}</p>
-                  <p className="text-sm text-white/80 line-clamp-2">"{m.text}"</p>
+                  <p className="text-sm text-white/80 line-clamp-2">
+                    "{m.entries[m.entries.length - 1]?.text}"
+                  </p>
                   <p className="text-[10px] font-mono text-white/30 mt-2">
-                    🕐 {timeAgo(m.createdAt)}
+                    🕐 {timeAgo(m.updatedAt)} · 📍 {m.ip}
                   </p>
                 </motion.button>
               );
@@ -285,20 +290,30 @@ function MessageDetail({
         </span>
         <p className="text-sm text-white/50">👤 {message.name}</p>
         <p className="text-[11px] font-mono text-white/30 mt-1">
-          {new Date(message.createdAt).toLocaleString("pt-BR")}
+          🕐 {new Date(message.createdAt).toLocaleString("pt-BR")} · 📍 IP: {message.ip}
         </p>
       </div>
 
-      <div className="rounded-2xl bg-white/5 border border-white/10 p-4 text-base leading-relaxed">
-        "{message.text}"
+      <div className="flex flex-col gap-2.5">
+        {message.entries.map((entry) => (
+          <div
+            key={entry.id}
+            className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+              entry.from === "andry"
+                ? "self-end bg-signal/15 border border-signal/30"
+                : "self-start bg-white/5 border border-white/10"
+            }`}
+          >
+            {entry.from === "andry" && (
+              <p className="text-[10px] font-mono text-signal2 mb-1">sua resposta 🚀</p>
+            )}
+            <p>"{entry.text}"</p>
+            <p className="text-[10px] font-mono text-white/30 mt-1">
+              {new Date(entry.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          </div>
+        ))}
       </div>
-
-      {message.reply && (
-        <div className="rounded-2xl bg-signal/10 border border-signal/30 p-4">
-          <p className="text-xs text-signal2 mb-1 font-mono">sua resposta 🚀</p>
-          <p className="text-sm">{message.reply}</p>
-        </div>
-      )}
 
       <div className="flex flex-col gap-2">
         <label className="text-xs text-white/40">Escreva uma resposta...</label>
